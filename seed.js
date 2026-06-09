@@ -1,10 +1,9 @@
 const Redis = require('ioredis');
 const redis = new Redis('redis://localhost:6379');
 
-const urls = [
-  'https://www.rasahydroponics.com/shop/',
-  // 'https://www.rasahydroponics.com/products/example2',
-];
+const ONE_HOUR = 60 * 60 * 1000;
+
+const urls = ['https://www.rasahydroponics.com/shop'];
 
 async function seed() {
   for (const url of urls) {
@@ -12,6 +11,7 @@ async function seed() {
   }
 
   console.log('Seeded URLs');
+  process.exit(0);
 }
 
-seed();
+seed().catch(console.error);

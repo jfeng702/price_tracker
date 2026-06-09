@@ -1,0 +1,61 @@
+const axios = require('axios');
+const cheerio = require('cheerio');
+const { consumer, producer } = require('./kafka');
+
+function sleep(ms) {
+  return new Promise((r) => setTimeout(r, ms));
+}
+
+async function scrapeProduct(url) {
+  const { data } = await axios.get(url, {
+    headers: { 'User-Agent': 'Mozilla/5.0' },
+  });
+
+  const $ = cheerio.load(data);
+
+  const title = $('section.product h1').first().text().trim();
+
+  const price = $('.product__price').first().text().trim();
+
+  return {
+    url,
+    title,
+    price,
+  };
+}
+
+async function run() {
+  await consumer.connect();
+  await producer.connect();
+
+  await consumer.subscribe({
+    topic: 'product_jobs',
+    fromBeginning: true,
+  });
+
+  console.log('Product worker running...');
+
+  await consumer.run({
+    eachMessage: async ({ message }) => {
+      const { url } = JSON.parse(message.value.toString());
+
+      try {
+        const result = await scrapeProduct(url);
+
+        console.log('Scraped:', result);
+
+        await producer.send({
+          topic: 'scrape_results',
+          messages: [{ value: JSON.stringify(result) }],
+        });
+
+        // robots crawl-delay
+        await sleep(2000);
+      } catch (err) {
+        console.error('Product error:', err.message);
+      }
+    },
+  });
+}
+
+run().catch(console.error);

@@ -1,43 +1,52 @@
 const Redis = require('ioredis');
-const { Kafka } = require('kafkajs');
+const { producer } = require('./kafka');
 
 const redis = new Redis('redis://localhost:6379');
 
-const kafka = new Kafka({
-  clientId: 'crawler',
-  brokers: ['localhost:9092'],
-});
+const ONE_HOUR = 60 * 60 * 1000;
 
-const producer = kafka.producer();
+function sleep(ms) {
+  return new Promise((r) => setTimeout(r, ms));
+}
 
-const ZSET_KEY = 'crawl_schedule';
-
-async function runScheduler() {
+async function run() {
   await producer.connect();
 
-  console.log('Scheduler started...');
+  console.log('Scheduler running...');
 
   while (true) {
     const now = Date.now();
 
-    // get due URLs
-    const urls = await redis.zrangebyscore(ZSET_KEY, 0, now, 'LIMIT', 0, 50);
+    const urls = await redis.zrangebyscore(
+      'crawl_schedule',
+      0,
+      now,
+      'LIMIT',
+      0,
+      20,
+    );
+
+    if (urls.length === 0) {
+      await sleep(1000);
+      continue;
+    }
 
     for (const url of urls) {
-      // remove from schedule
-      await redis.zrem(ZSET_KEY, url);
+      // remove from schedule first
+      await redis.zrem('crawl_schedule', url);
 
-      // push to Kafka
+      console.log('Dispatch → listing_jobs:', url);
+
+      // send to Kafka
       await producer.send({
-        topic: 'crawl_jobs',
+        topic: 'listing_jobs',
         messages: [{ value: JSON.stringify({ url }) }],
       });
 
-      console.log('Scheduled:', url);
+      // 🔁 RESCHEDULE for next hour
+      await redis.zadd('crawl_schedule', Date.now() + ONE_HOUR, url);
     }
-
-    await new Promise((r) => setTimeout(r, 1000));
   }
 }
 
-runScheduler();
+run().catch(console.error);
