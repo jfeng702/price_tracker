@@ -1,7 +1,7 @@
 const pino = require('pino');
 const redis = require('./redisClient');
 
-// const logger = pino();
+const logger = pino();
 
 const CRAWL_DELAY = 2000; // 2 seconds
 

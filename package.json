@@ -4,7 +4,11 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "seed": "node seed.js",
+    "scheduler": "node scheduler.js",
+    "listing": "node listing-worker.js | npx pino-prettier",
+    "product": "node product-worker.js | npx pino-prettier"
   },
   "keywords": [],
   "author": "",
@@ -16,5 +20,8 @@
     "kafkajs": "^2.2.4",
     "pino": "^10.3.1",
     "redis": "^6.0.0"
+  },
+  "devDependencies": {
+    "pino-pretty": "^13.1.3"
   }
 }
