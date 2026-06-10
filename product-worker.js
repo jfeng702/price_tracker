@@ -1,10 +1,11 @@
 const axios = require('axios');
 const cheerio = require('cheerio');
 const { consumer, producer } = require('./kafka');
+const { acquireSlot } = require('./rateLimiter');
 
-function sleep(ms) {
-  return new Promise((r) => setTimeout(r, ms));
-}
+// function sleep(ms) {
+//   return new Promise((r) => setTimeout(r, ms));
+// }
 
 async function scrapeProduct(url) {
   const { data } = await axios.get(url, {
@@ -40,6 +41,7 @@ async function run() {
       const { url } = JSON.parse(message.value.toString());
 
       try {
+        await acquireSlot();
         const result = await scrapeProduct(url);
 
         console.log('Scraped:', result);
@@ -48,9 +50,6 @@ async function run() {
           topic: 'scrape_results',
           messages: [{ value: JSON.stringify(result) }],
         });
-
-        // robots crawl-delay
-        await sleep(2000);
       } catch (err) {
         console.error('Product error:', err.message);
       }

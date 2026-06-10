@@ -3,10 +3,11 @@ const cheerio = require('cheerio');
 const { consumer, producer } = require('./kafka');
 const { isBlocked } = require('./robots');
 const { seenRecently } = require('./dedupe');
+const { acquireSlot } = require('./rateLimiter');
 
-function sleep(ms) {
-  return new Promise((r) => setTimeout(r, ms));
-}
+// function sleep(ms) {
+//   return new Promise((r) => setTimeout(r, ms));
+// }
 
 async function scrapeListing(url) {
   const { data } = await axios.get(url, {
@@ -57,6 +58,7 @@ async function run() {
 
       console.log('Listing:', url);
 
+      await acquireSlot();
       const { products, pages } = await scrapeListing(url);
 
       for (const p of products) {
@@ -76,8 +78,6 @@ async function run() {
           messages: [{ value: JSON.stringify({ url: p }) }],
         });
       }
-      // robots crawl-delay = 2 seconds
-      await sleep(2000);
     },
   });
 }

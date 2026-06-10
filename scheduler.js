@@ -33,7 +33,6 @@ async function run() {
 
     for (const url of urls) {
       // remove from schedule first
-      await redis.zrem('crawl_schedule', url);
 
       console.log('Dispatch → listing_jobs:', url);
 
@@ -42,6 +41,8 @@ async function run() {
         topic: 'listing_jobs',
         messages: [{ value: JSON.stringify({ url }) }],
       });
+
+      await redis.zrem('crawl_schedule', url);
 
       // 🔁 RESCHEDULE for next hour
       await redis.zadd('crawl_schedule', Date.now() + ONE_HOUR, url);
