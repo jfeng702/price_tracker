@@ -1,13 +1,10 @@
 const axios = require('axios');
 const cheerio = require('cheerio');
-const { consumer, producer } = require('./kafka');
+const { createConsumer, producer } = require('./kafka');
 const { isBlocked } = require('./robots');
 const { seenRecently } = require('./dedupe');
 const { acquireSlot } = require('./rateLimiter');
-
-// function sleep(ms) {
-//   return new Promise((r) => setTimeout(r, ms));
-// }
+const redis = require('./redisClient');
 
 async function scrapeListing(url) {
   const { data } = await axios.get(url, {
@@ -31,8 +28,8 @@ async function scrapeListing(url) {
     .filter((_, el) => $(el).text().includes('Next'))
     .attr('href');
 
-  if (!nextUrl || nextUrl === 'https://www.rasahydroponics.com/') return;
-  if (!isBlocked(nextUrl)) {
+  if (!nextUrl) return;
+  if (!isBlocked(nextUrl) && nextUrl !== 'https://www.rasahydroponics.com/') {
     pages.push(nextUrl);
   }
 
@@ -40,46 +37,52 @@ async function scrapeListing(url) {
 }
 
 async function run() {
-  await consumer.connect();
-  await producer.connect();
+  try {
+    await redis.connect();
+    const consumer = createConsumer('listing-group');
+    await consumer.connect();
+    await producer.connect();
 
-  await consumer.subscribe({
-    topic: 'listing_jobs',
-    fromBeginning: true,
-  });
+    await consumer.subscribe({
+      topic: 'listing_jobs',
+      fromBeginning: true,
+    });
 
-  console.log('Listing worker running...');
+    console.log('Listing worker running...');
 
-  await consumer.run({
-    eachMessage: async ({ message }) => {
-      const { url } = JSON.parse(message.value.toString());
+    await consumer.run({
+      eachMessage: async ({ message }) => {
+        const { url } = JSON.parse(message.value.toString());
 
-      if (isBlocked(url)) return;
+        if (isBlocked(url)) return;
 
-      console.log('Listing:', url);
+        console.log('Listing:', url);
 
-      await acquireSlot();
-      const { products, pages } = await scrapeListing(url);
+        await acquireSlot();
+        const { products, pages } = await scrapeListing(url);
 
-      for (const p of products) {
-        if (await seenRecently('dedupe:products', p)) continue;
+        for (const p of products) {
+          if (await seenRecently('dedupe:products', p)) continue;
 
-        await producer.send({
-          topic: 'product_jobs',
-          messages: [{ value: JSON.stringify({ url: p }) }],
-        });
-      }
+          await producer.send({
+            topic: 'product_jobs',
+            messages: [{ value: JSON.stringify({ url: p }) }],
+          });
+        }
 
-      for (const p of pages) {
-        if (await seenRecently('dedupe:pages', p)) continue;
+        for (const p of pages) {
+          if (await seenRecently('dedupe:pages', p)) continue;
 
-        await producer.send({
-          topic: 'listing_jobs',
-          messages: [{ value: JSON.stringify({ url: p }) }],
-        });
-      }
-    },
-  });
+          await producer.send({
+            topic: 'listing_jobs',
+            messages: [{ value: JSON.stringify({ url: p }) }],
+          });
+        }
+      },
+    });
+  } catch (error) {
+    console.error(error.stack);
+  }
 }
 
 run();

@@ -1,7 +1,8 @@
 const axios = require('axios');
 const cheerio = require('cheerio');
-const { consumer, producer } = require('./kafka');
+const { createConsumer, producer } = require('./kafka');
 const { acquireSlot } = require('./rateLimiter');
+const redis = require('./redisClient');
 
 // function sleep(ms) {
 //   return new Promise((r) => setTimeout(r, ms));
@@ -26,6 +27,8 @@ async function scrapeProduct(url) {
 }
 
 async function run() {
+  await redis.connect();
+  const consumer = createConsumer('product-group');
   await consumer.connect();
   await producer.connect();
 

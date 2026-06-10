@@ -6,6 +6,9 @@ const kafka = new Kafka({
 });
 
 const producer = kafka.producer();
-const consumer = kafka.consumer({ groupId: 'crawler-group' });
 
-module.exports = { kafka, producer, consumer };
+function createConsumer(groupId) {
+  return kafka.consumer({ groupId });
+}
+
+module.exports = { kafka, producer, createConsumer };

@@ -1,7 +1,6 @@
-const Redis = require('ioredis');
 const { producer } = require('./kafka');
 
-const redis = new Redis('redis://localhost:6379');
+const redis = require('./redisClient');
 
 const ONE_HOUR = 60 * 60 * 1000;
 
@@ -10,6 +9,7 @@ function sleep(ms) {
 }
 
 async function run() {
+  await redis.connect();
   await producer.connect();
 
   console.log('Scheduler running...');
@@ -17,7 +17,7 @@ async function run() {
   while (true) {
     const now = Date.now();
 
-    const urls = await redis.zrangebyscore(
+    const urls = await redis.zRangeByScore(
       'crawl_schedule',
       0,
       now,
@@ -42,10 +42,12 @@ async function run() {
         messages: [{ value: JSON.stringify({ url }) }],
       });
 
-      await redis.zrem('crawl_schedule', url);
+      await redis.zRem('crawl_schedule', url);
 
       // 🔁 RESCHEDULE for next hour
-      await redis.zadd('crawl_schedule', Date.now() + ONE_HOUR, url);
+      await redis.zAdd('crawl_schedule', [
+        { score: Date.now() + ONE_HOUR, value: url },
+      ]);
     }
   }
 }

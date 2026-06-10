@@ -1,19 +1,22 @@
-const Redis = require('ioredis');
-const redis = new Redis('redis://localhost:6379');
+const pino = require('pino');
+const redis = require('./redisClient');
+
+// const logger = pino();
 
 const CRAWL_DELAY = 2000; // 2 seconds
 
 async function acquireSlot() {
   while (true) {
-    const last = await redis.get('global:last_request_time');
-    const now = Date.now();
+    const acquired = await redis.set('global:crawl_lock', '1', {
+      NX: true,
+      PX: CRAWL_DELAY,
+    });
 
-    if (!last || now - Number(last) >= CRAWL_DELAY) {
-      await redis.set('global:last_request_time', now);
+    if (acquired) {
       return;
     }
 
-    await new Promise((r) => setTimeout(r, 200));
+    await new Promise((r) => setTimeout(r, 100));
   }
 }
 
