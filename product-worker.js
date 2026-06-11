@@ -4,6 +4,7 @@ const { createConsumer, producer } = require('./kafka');
 const { acquireSlot } = require('./rateLimiter');
 const redis = require('./redisClient');
 const { products, price_history, connectMongo } = require('./mongoClient');
+const { parsePrice, asNumber } = require('./parsePrice');
 const logger = require('./logger');
 
 async function scrapeProduct(url) {
@@ -15,11 +16,13 @@ async function scrapeProduct(url) {
 
   const title = $('section.product h1').first().text().trim();
 
-  const price = $('.product__price').first().text().trim();
+  const priceText = $('.product__price').first().text().trim();
+  const price = parsePrice(priceText);
 
   return {
     title,
     price,
+    priceText,
   };
 }
 
@@ -43,7 +46,12 @@ async function run() {
 
       try {
         await acquireSlot();
-        const { title, price } = await scrapeProduct(url);
+        const { title, price, priceText } = await scrapeProduct(url);
+
+        if (price == null) {
+          logger.warn({ url, priceText }, 'Could not parse price');
+          return;
+        }
 
         logger.info({ url, title, price }, 'Scraped product');
 
@@ -73,10 +81,12 @@ async function run() {
           return;
         }
 
+        const previousPrice = asNumber(existing.currentPrice);
+
         // 4. detect change
-        if (existing.currentPrice !== price) {
+        if (previousPrice !== price) {
           logger.info(
-            { url, from: existing.currentPrice, to: price },
+            { url, from: previousPrice, to: price },
             'Price change',
           );
 
@@ -88,7 +98,7 @@ async function run() {
                 currentPrice: price,
                 lastScrapedAt: now,
                 lastChangeAt: now,
-                lastPrice: existing.currentPrice,
+                lastPrice: previousPrice ?? price,
               },
             },
           );
