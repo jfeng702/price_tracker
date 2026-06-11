@@ -3,6 +3,7 @@ const redis = require('./redisClient');
 const logger = require('./logger');
 
 const ONE_HOUR = 60 * 60 * 1000;
+const ONE_DAY = ONE_HOUR * 24;
 
 function sleep(ms) {
   return new Promise((r) => setTimeout(r, ms));
@@ -46,7 +47,7 @@ async function run() {
 
       // 🔁 RESCHEDULE for next hour
       await redis.zAdd('crawl_schedule', [
-        { score: Date.now() + ONE_HOUR, value: url },
+        { score: Date.now() + ONE_DAY, value: url },
       ]);
     }
   }
