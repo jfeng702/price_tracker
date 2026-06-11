@@ -3,7 +3,7 @@ const cheerio = require('cheerio');
 const { createConsumer, producer } = require('./kafka');
 const { acquireSlot } = require('./rateLimiter');
 const redis = require('./redisClient');
-const { db, connectMongo } = require('./mongoClient');
+const { products, price_history, connectMongo } = require('./mongoClient');
 const logger = require('./logger');
 
 async function scrapeProduct(url) {
@@ -50,10 +50,10 @@ async function run() {
         const now = new Date();
 
         // 1. get current product state
-        const existing = await db.products.findOne({ url });
+        const existing = await products.findOne({ url });
 
         // 2. always insert history
-        await db.price_history.insertOne({
+        await price_history.insertOne({
           url,
           price,
           scrapedAt: now,
@@ -61,7 +61,7 @@ async function run() {
 
         // 3. upsert current product
         if (!existing) {
-          await db.products.insertOne({
+          await products.insertOne({
             url,
             title,
             currentPrice: price,
@@ -80,7 +80,7 @@ async function run() {
             'Price change',
           );
 
-          await db.products.updateOne(
+          await products.updateOne(
             { url },
             {
               $set: {
@@ -94,7 +94,7 @@ async function run() {
           );
         } else {
           // no change, just update timestamp
-          await db.products.updateOne(
+          await products.updateOne(
             { url },
             {
               $set: {
