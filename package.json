@@ -8,7 +8,10 @@
     "seed": "node seed.js",
     "scheduler": "node scheduler.js",
     "listing": "node listing-worker.js",
-    "product": "node product-worker.js"
+    "product": "node product-worker.js",
+    "build:client": "npm ci --prefix client && npm run build --prefix client",
+    "web": "node server.js",
+    "dev:client": "npm run dev --prefix client"
   },
   "keywords": [],
   "author": "",
@@ -16,6 +19,7 @@
   "type": "commonjs",
   "dependencies": {
     "axios": "^1.17.0",
+    "express": "^5.1.0",
     "cheerio": "^1.2.0",
     "kafkajs": "^2.2.4",
     "mongodb": "^6.16.0",

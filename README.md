@@ -27,6 +27,8 @@ docker compose up --build -d
 
 After editing code, restart the affected worker (or the whole stack). There is no auto-reload yet.
 
+Open the React web UI at [http://localhost:3000](http://localhost:3000) — product table and price-over-time charts. The `web` service builds the client on startup.
+
 ### Seed data (optional)
 
 ```bash
@@ -64,6 +66,14 @@ npm run seed
 npm run scheduler
 npm run listing
 npm run product
+
+# Web UI — build React client, then start API (http://localhost:3000)
+npm run build:client
+npm run web
+
+# Or run frontend dev server with hot reload (API on :3000, UI on :5173)
+npm run web
+npm run dev:client
 ```
 
 When connecting to Kafka from the host, use port `9093` (not `9092`):
