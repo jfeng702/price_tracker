@@ -29,8 +29,11 @@ async function scrapeListing(url) {
     .filter((_, el) => $(el).text().includes('Next'))
     .attr('href');
 
-  if (!nextUrl) return;
-  if (!isBlocked(nextUrl) && nextUrl !== 'https://www.rasahydroponics.com/') {
+  if (
+    nextUrl &&
+    !isBlocked(nextUrl) &&
+    nextUrl !== 'https://www.rasahydroponics.com/'
+  ) {
     pages.push(nextUrl);
   }
 
