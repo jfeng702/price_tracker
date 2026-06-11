@@ -3,10 +3,10 @@ const cheerio = require('cheerio');
 const { createConsumer, producer } = require('./kafka');
 const { acquireSlot } = require('./rateLimiter');
 const redis = require('./redisClient');
+const { db, connectMongo } = require('./mongoClient');
+const pino = require('pino');
 
-// function sleep(ms) {
-//   return new Promise((r) => setTimeout(r, ms));
-// }
+const logger = pino();
 
 async function scrapeProduct(url) {
   const { data } = await axios.get(url, {
@@ -20,7 +20,6 @@ async function scrapeProduct(url) {
   const price = $('.product__price').first().text().trim();
 
   return {
-    url,
     title,
     price,
   };
@@ -28,6 +27,7 @@ async function scrapeProduct(url) {
 
 async function run() {
   await redis.connect();
+  await connectMongo();
   const consumer = createConsumer('product-group');
   await consumer.connect();
   await producer.connect();
@@ -45,16 +45,65 @@ async function run() {
 
       try {
         await acquireSlot();
-        const result = await scrapeProduct(url);
+        const { title, price } = await scrapeProduct(url);
 
-        console.log('Scraped:', result);
+        console.log('Scraped:', { url, title, price });
 
-        await producer.send({
-          topic: 'scrape_results',
-          messages: [{ value: JSON.stringify(result) }],
+        const now = new Date();
+
+        // 1. get current product state
+        const existing = await db.products.findOne({ url });
+
+        // 2. always insert history
+        await db.price_history.insertOne({
+          url,
+          price,
+          scrapedAt: now,
         });
+
+        // 3. upsert current product
+        if (!existing) {
+          await db.products.insertOne({
+            url,
+            title,
+            currentPrice: price,
+            lastScrapedAt: now,
+            lastChangeAt: now,
+            lastPrice: price,
+            imageUrl: '',
+          });
+          return;
+        }
+
+        // 4. detect change
+        if (existing.currentPrice !== price) {
+          console.log('PRICE CHANGE:', existing.currentPrice, '→', price);
+
+          await db.products.updateOne(
+            { url },
+            {
+              $set: {
+                title,
+                currentPrice: price,
+                lastScrapedAt: now,
+                lastChangeAt: now,
+                lastPrice: existing.currentPrice,
+              },
+            },
+          );
+        } else {
+          // no change, just update timestamp
+          await db.products.updateOne(
+            { url },
+            {
+              $set: {
+                lastScrapedAt: now,
+              },
+            },
+          );
+        }
       } catch (err) {
-        console.error('Product error:', err.message);
+        logger.error({ err }, 'Product error');
       }
     },
   });

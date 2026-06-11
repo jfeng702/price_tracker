@@ -2,7 +2,7 @@ const { Kafka } = require('kafkajs');
 
 const kafka = new Kafka({
   clientId: 'price-tracker',
-  brokers: ['localhost:9092'],
+  brokers: (process.env.KAFKA_BROKER || 'localhost:9092').split(','),
 });
 
 const producer = kafka.producer();
