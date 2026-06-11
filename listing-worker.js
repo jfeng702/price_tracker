@@ -5,6 +5,7 @@ const { isBlocked } = require('./robots');
 const { seenRecently } = require('./dedupe');
 const { acquireSlot } = require('./rateLimiter');
 const redis = require('./redisClient');
+const logger = require('./logger');
 
 async function scrapeListing(url) {
   const { data } = await axios.get(url, {
@@ -48,7 +49,7 @@ async function run() {
       fromBeginning: true,
     });
 
-    console.log('Listing worker running...');
+    logger.info('Listing worker running');
 
     await consumer.run({
       eachMessage: async ({ message }) => {
@@ -56,7 +57,7 @@ async function run() {
 
         if (isBlocked(url)) return;
 
-        console.log('Listing:', url);
+        logger.info({ url }, 'Listing scrape');
 
         await acquireSlot();
         const { products, pages } = await scrapeListing(url);
@@ -80,8 +81,8 @@ async function run() {
         }
       },
     });
-  } catch (error) {
-    console.error(error.stack);
+  } catch (err) {
+    logger.error({ err }, 'Listing worker failed');
   }
 }
 

@@ -1,6 +1,6 @@
 const { producer } = require('./kafka');
-
 const redis = require('./redisClient');
+const logger = require('./logger');
 
 const ONE_HOUR = 60 * 60 * 1000;
 
@@ -12,7 +12,7 @@ async function run() {
   await redis.connect();
   await producer.connect();
 
-  console.log('Scheduler running...');
+  logger.info('Scheduler running');
 
   while (true) {
     const now = Date.now();
@@ -34,7 +34,7 @@ async function run() {
     for (const url of urls) {
       // remove from schedule first
 
-      console.log('Dispatch → listing_jobs:', url);
+      logger.info({ url }, 'Dispatch listing job');
 
       // send to Kafka
       await producer.send({
@@ -52,4 +52,4 @@ async function run() {
   }
 }
 
-run().catch(console.error);
+run().catch((err) => logger.error({ err }, 'Scheduler failed'));

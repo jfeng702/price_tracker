@@ -4,9 +4,7 @@ const { createConsumer, producer } = require('./kafka');
 const { acquireSlot } = require('./rateLimiter');
 const redis = require('./redisClient');
 const { db, connectMongo } = require('./mongoClient');
-const pino = require('pino');
-
-const logger = pino();
+const logger = require('./logger');
 
 async function scrapeProduct(url) {
   const { data } = await axios.get(url, {
@@ -37,7 +35,7 @@ async function run() {
     fromBeginning: true,
   });
 
-  console.log('Product worker running...');
+  logger.info('Product worker running');
 
   await consumer.run({
     eachMessage: async ({ message }) => {
@@ -47,7 +45,7 @@ async function run() {
         await acquireSlot();
         const { title, price } = await scrapeProduct(url);
 
-        console.log('Scraped:', { url, title, price });
+        logger.info({ url, title, price }, 'Scraped product');
 
         const now = new Date();
 
@@ -77,7 +75,10 @@ async function run() {
 
         // 4. detect change
         if (existing.currentPrice !== price) {
-          console.log('PRICE CHANGE:', existing.currentPrice, '→', price);
+          logger.info(
+            { url, from: existing.currentPrice, to: price },
+            'Price change',
+          );
 
           await db.products.updateOne(
             { url },
@@ -109,4 +110,4 @@ async function run() {
   });
 }
 
-run().catch(console.error);
+run().catch((err) => logger.error({ err }, 'Product worker failed'));

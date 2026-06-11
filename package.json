@@ -7,8 +7,8 @@
     "test": "echo \"Error: no test specified\" && exit 1",
     "seed": "node seed.js",
     "scheduler": "node scheduler.js",
-    "listing": "node listing-worker.js | npx pino-prettier",
-    "product": "node product-worker.js | npx pino-prettier"
+    "listing": "node listing-worker.js",
+    "product": "node product-worker.js"
   },
   "keywords": [],
   "author": "",

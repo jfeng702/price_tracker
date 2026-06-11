@@ -1,4 +1,5 @@
 const redis = require('./redisClient');
+const logger = require('./logger');
 
 const ONE_HOUR = 60 * 60 * 1000;
 
@@ -10,8 +11,8 @@ async function seed() {
     await redis.zAdd('crawl_schedule', [{ score: Date.now(), value: url }]);
   }
 
-  console.log('Seeded URLs');
+  logger.info({ count: urls.length }, 'Seeded URLs');
   process.exit(0);
 }
 
-seed().catch(console.error);
+seed().catch((err) => logger.error({ err }, 'Seed failed'));
