@@ -15,8 +15,12 @@ services:
     image: confluentinc/cp-zookeeper:7.5.0
     environment:
       ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
     volumes:
-      - zookeeper_data:/var/lib/zookeeper
+      # Mount data/log directly — the image declares anonymous volumes here
+      # which override a parent mount and are wiped on container remove.
+      - zookeeper_data:/var/lib/zookeeper/data
+      - zookeeper_log:/var/lib/zookeeper/log
 
   kafka:
     image: confluentinc/cp-kafka:7.5.0
@@ -136,4 +140,5 @@ volumes:
   mongo_data:
   kafka_data:
   zookeeper_data:
+  zookeeper_log:
   # redis_data:
