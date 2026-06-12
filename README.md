@@ -1,6 +1,6 @@
 # price_tracker
 
-Price scraping pipeline: scheduler enqueues listing jobs, workers scrape listings and product pages, results land in Mongo.
+Price scraping pipeline: scheduler enqueues listing jobs, workers scrape listings and product pages, results land in Mongo. Tracks price changes for a gardening store.
 
 ## Prerequisites
 
