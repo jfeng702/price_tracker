@@ -15,6 +15,8 @@ services:
     image: confluentinc/cp-zookeeper:7.5.0
     environment:
       ZOOKEEPER_CLIENT_PORT: 2181
+    volumes:
+      - zookeeper_data:/var/lib/zookeeper
 
   kafka:
     image: confluentinc/cp-kafka:7.5.0
@@ -133,4 +135,5 @@ services:
 volumes:
   mongo_data:
   kafka_data:
+  zookeeper_data:
   # redis_data:
