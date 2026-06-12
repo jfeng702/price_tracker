@@ -1,6 +1,17 @@
+export function roundPrice(value) {
+  if (value == null || Number.isNaN(Number(value))) return null;
+  return Math.round(Number(value) * 100) / 100;
+}
+
 export function formatPrice(value) {
-  if (value == null) return '—';
-  return `$${value.toFixed(2)}`;
+  const rounded = roundPrice(value);
+  if (rounded == null) return '—';
+  return new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency: 'USD',
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(rounded);
 }
 
 export function formatDate(value) {

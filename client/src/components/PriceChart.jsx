@@ -8,7 +8,7 @@ import {
   Tooltip,
 } from 'chart.js';
 import { Line } from 'react-chartjs-2';
-import { formatChartDate, formatPrice } from '../utils';
+import { formatChartDate, formatPrice, roundPrice } from '../utils';
 
 ChartJS.register(
   CategoryScale,
@@ -39,7 +39,7 @@ export default function PriceChart({ history, loading, error }) {
     datasets: [
       {
         label: 'Price (USD)',
-        data: points.map((row) => row.price),
+        data: points.map((row) => roundPrice(row.price)),
         borderColor: '#2f6b4f',
         backgroundColor: 'rgba(47, 107, 79, 0.12)',
         fill: true,
@@ -56,7 +56,7 @@ export default function PriceChart({ history, loading, error }) {
     scales: {
       y: {
         ticks: {
-          callback: (value) => `$${value}`,
+          callback: (value) => formatPrice(value),
         },
       },
     },

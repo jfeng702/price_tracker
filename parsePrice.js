@@ -10,7 +10,9 @@ function parsePrice(text) {
 }
 
 function asNumber(value) {
-  if (typeof value === 'number' && !Number.isNaN(value)) return value;
+  if (typeof value === 'number' && !Number.isNaN(value)) {
+    return Math.round(value * 100) / 100;
+  }
   if (typeof value === 'string') return parsePrice(value);
   return null;
 }
