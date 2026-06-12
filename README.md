@@ -89,3 +89,30 @@ Stop infra when done:
 ```bash
 docker compose down
 ```
+
+## Troubleshooting
+
+### `Cannot find module @rollup/rollup-darwin-arm64` (Vite / `npm run dev:client`)
+
+npm sometimes skips Rollup’s platform-specific optional dependency. Fix:
+
+```bash
+cd client
+rm -rf node_modules package-lock.json
+npm install
+npm run dev
+```
+
+If `rm` fails on `node_modules/nanoid/.claude`, remove that folder first:
+
+```bash
+chmod -R u+w node_modules/nanoid 2>/dev/null; rm -rf node_modules package-lock.json
+```
+
+If npm reports cache permission errors:
+
+```bash
+sudo chown -R "$(whoami)" ~/.npm
+```
+
+Use **Node.js 20 LTS** if issues persist (Node 25 is not tested with this project).
