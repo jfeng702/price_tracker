@@ -1,6 +1,6 @@
 # price_tracker
 
-Price scraping pipeline: scheduler enqueues listing jobs, workers scrape listings and product pages, results land in Mongo. Tracks price changes for a gardening store.
+I wanted to see any price changes on a certain gardening store. This app scrapes listings pages and product pages using Kafka for durability and stores them in Mongo.
 
 ## Prerequisites
 
