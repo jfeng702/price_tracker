@@ -164,9 +164,34 @@ web (Express) ── reads Mongo, serves React UI
 
 Redis also holds `crawl_schedule` (sorted set) and dedupe keys.
 
-## Troubleshooting
+### Seed seems to do nothing
 
-### Vite: `Cannot find module @rollup/rollup-darwin-arm64`
+Seed only writes to **Redis** (`crawl_schedule`). Workers must use the **same** `REDIS_URL` as seed.
+
+| You ran | Workers use | Result |
+|---------|-------------|--------|
+| `docker compose --profile seed run seed` | `docker-compose.ext.yml` + `.env` (Upstash) | **Broken** — seed hits local Redis, workers hit Upstash |
+| `npm run seed` without `.env` loaded | Upstash in Docker | **Broken** — seed hits `localhost` |
+
+**Fix** — seed with the same compose file and env as your workers:
+
+```bash
+docker compose -f docker-compose.ext.yml --env-file .env --profile seed run --rm seed
+```
+
+Or locally (`.env` is loaded via `dotenv` in `redisClient.js`):
+
+```bash
+npm run seed
+```
+
+Then confirm the pipeline is running (seed alone is not enough):
+
+```bash
+docker compose -f docker-compose.ext.yml --env-file .env up -d scheduler listing-worker product-worker
+```
+
+Check scheduler logs for `Dispatch listing job`. Products appear in the UI only after **product-worker** writes to Mongo (`MONGO_URL` must be set).
 
 ```bash
 cd client && rm -rf node_modules package-lock.json && npm install
