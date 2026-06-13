@@ -10,7 +10,7 @@
     "listing": "node listing-worker.js",
     "product": "node product-worker.js",
     "workers": "sh scripts/start-workers.sh",
-    "build:client": "npm ci --prefix client && npm run build --prefix client",
+    "build:client": "npm ci --prefix client --include=dev && npm run build --prefix client",
     "web": "node server.js",
     "dev:client": "npm run dev --prefix client"
   },

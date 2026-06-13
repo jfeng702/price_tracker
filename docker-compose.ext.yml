@@ -26,7 +26,7 @@ services:
 
   web:
     build: .
-    command: sh -c "npm ci --prefix client && npm run build --prefix client && node server.js"
+    command: sh -c "npm ci --prefix client --include=dev && npm run build --prefix client && node server.js"
     ports:
       - "3000:3000"
     environment:
