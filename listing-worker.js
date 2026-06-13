@@ -1,10 +1,15 @@
 const axios = require('axios');
 const cheerio = require('cheerio');
-const { createConsumer, producer } = require('./kafka');
 const { isBlocked } = require('./robots');
 const { seenRecently } = require('./dedupe');
 const { acquireSlot } = require('./rateLimiter');
 const redis = require('./redisClient');
+const {
+  enqueueListingJob,
+  enqueueProductJob,
+  runConsumer,
+  LISTING_JOBS,
+} = require('./jobQueue');
 const logger = require('./logger');
 
 async function scrapeListing(url) {
@@ -41,52 +46,28 @@ async function scrapeListing(url) {
 }
 
 async function run() {
-  try {
-    await redis.connect();
-    const consumer = createConsumer('listing-group');
-    await consumer.connect();
-    await producer.connect();
+  await redis.connect();
 
-    await consumer.subscribe({
-      topic: 'listing_jobs',
-      fromBeginning: true,
-    });
+  logger.info('Listing worker running');
 
-    logger.info('Listing worker running');
+  await runConsumer(LISTING_JOBS, async ({ url }) => {
+    if (isBlocked(url)) return;
 
-    await consumer.run({
-      eachMessage: async ({ message }) => {
-        const { url } = JSON.parse(message.value.toString());
+    logger.info({ url }, 'Listing scrape');
 
-        if (isBlocked(url)) return;
+    await acquireSlot();
+    const { products, pages } = await scrapeListing(url);
 
-        logger.info({ url }, 'Listing scrape');
+    for (const p of products) {
+      if (await seenRecently('dedupe:products', p)) continue;
+      await enqueueProductJob(p);
+    }
 
-        await acquireSlot();
-        const { products, pages } = await scrapeListing(url);
-
-        for (const p of products) {
-          if (await seenRecently('dedupe:products', p)) continue;
-
-          await producer.send({
-            topic: 'product_jobs',
-            messages: [{ value: JSON.stringify({ url: p }) }],
-          });
-        }
-
-        for (const p of pages) {
-          if (await seenRecently('dedupe:pages', p)) continue;
-
-          await producer.send({
-            topic: 'listing_jobs',
-            messages: [{ value: JSON.stringify({ url: p }) }],
-          });
-        }
-      },
-    });
-  } catch (err) {
-    logger.error({ err }, 'Listing worker failed');
-  }
+    for (const p of pages) {
+      if (await seenRecently('dedupe:pages', p)) continue;
+      await enqueueListingJob(p);
+    }
+  });
 }
 
-run();
+run().catch((err) => logger.error({ err }, 'Listing worker failed'));

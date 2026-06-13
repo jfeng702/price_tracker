@@ -1,118 +1,175 @@
 # price_tracker
 
-I wanted to see any price changes on a certain gardening store. This app scrapes listings pages and product pages using Kafka for durability and stores them in Mongo.
+Scrapes listing and product pages, tracks prices in Mongo. Jobs flow through **Redis queues** (schedule, dedupe, and work queues) — no Kafka.
 
 ## Prerequisites
 
-- [Docker](https://docs.docker.com/get-docker/) with Docker Compose
+- [Docker](https://docs.docker.com/get-docker/) with Docker Compose for local full stack
+- Node.js 20+ and npm for local dev or VM deploy
 
-For running workers on your machine instead of in containers:
+## Run locally with Docker (full stack)
 
-- Node.js 20+
-- npm
-
-## Run with Docker Compose (recommended)
-
-Starts Redis, Kafka, Mongo, and all workers. Workers run in development mode (pretty logs, code mounted from your working tree).
+Starts Redis, Mongo, workers, and web UI.
 
 ```bash
 docker compose up --build
 ```
 
-Add `-d` to run in the background:
+Open [http://localhost:3000](http://localhost:3000).
 
-```bash
-docker compose up --build -d
-```
-
-After editing code, restart the affected worker (or the whole stack). There is no auto-reload yet.
-
-Open the React web UI at [http://localhost:3000](http://localhost:3000) — product table and price-over-time charts. The `web` service builds the client on startup.
-
-### Seed data (optional)
+Seed crawl schedule (optional):
 
 ```bash
 docker compose --profile seed run --rm seed
 ```
 
-### Useful commands
-
 ```bash
-# Follow logs for one service
-docker compose logs -f product-worker
-
-# Stop everything
-docker compose down
-
-# Stop and remove volumes (clears Mongo/Kafka data)
-docker compose down -v
+docker compose down          # stop
+docker compose down -v       # stop and wipe Mongo data
 ```
 
-## Run locally (workers on your machine)
-
-Use Docker only for infrastructure, then run Node processes locally.
+## Run locally (Node on your machine)
 
 ```bash
-# Start infra
-docker compose up -d redis zookeeper kafka mongo
-
-# Install dependencies
+docker compose up -d redis mongo
 npm install
+npm run seed                 # optional
+npm run workers              # scheduler + listing + product
+npm run build:client && npm run web   # API + UI on :3000
+```
 
-# Optional: seed
-npm run seed
+Defaults: `redis://localhost:6379`, `mongodb://localhost:27017`.
 
-# Run each worker in a separate terminal
-npm run scheduler
-npm run listing
-npm run product
+## Deploy (recommended: GCP free VM)
 
-# Web UI — build React client, then start API (http://localhost:3000)
+Use a **small VM for Node only** plus **free managed** Mongo and Redis. No Render, no Kafka, no heavy Docker stack on the VM.
+
+### 1. Managed services (free tier)
+
+| Service | Provider |
+|---------|----------|
+| MongoDB | [MongoDB Atlas](https://www.mongodb.com/cloud/atlas) M0 |
+| Redis | [Upstash](https://upstash.com/) |
+
+In Atlas: create cluster → Database Access user → Network Access allow your VM IP (or `0.0.0.0/0` for testing).
+
+In Upstash: create Redis database → copy the TLS URL (`rediss://...`).
+
+### 2. GCP Compute Engine VM
+
+1. [Google Cloud Console](https://console.cloud.google.com/) → **Compute Engine** → **Create instance**.
+2. **Region:** `us-central1`, `us-east1`, or `us-west1` (Always Free `e2-micro` regions).
+3. **Machine type:** `e2-micro` (1 GB RAM).
+4. **Boot disk:** Ubuntu 22.04 LTS, 30 GB.
+5. **Firewall:** allow HTTP/HTTPS if you want the UI on the internet.
+6. Create → note the **external IP**.
+
+SSH in:
+
+```bash
+gcloud compute ssh YOUR_INSTANCE_NAME --zone YOUR_ZONE
+```
+
+Or use the browser SSH button in the console.
+
+### 3. Install Node on the VM
+
+```bash
+sudo apt update && sudo apt upgrade -y
+sudo apt install -y git curl
+curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
+sudo apt install -y nodejs
+```
+
+### 4. Deploy the app
+
+```bash
+git clone https://github.com/YOUR_USER/price_tracker.git
+cd price_tracker
+npm install
 npm run build:client
-npm run web
 
-# Or run frontend dev server with hot reload (API on :3000, UI on :5173)
+export MONGO_URL='mongodb+srv://USER:PASS@cluster.mongodb.net/price_tracker'
+export REDIS_URL='rediss://default:TOKEN@HOST.upstash.io:6379'
+export NODE_ENV=production
+export PORT=3000
+
+npm run seed
+npm run workers &
 npm run web
-npm run dev:client
 ```
 
-When connecting to Kafka from the host, use port `9093` (not `9092`):
+Open `http://EXTERNAL_IP:3000` (add firewall rule for port 3000, or use HTTPS below).
+
+### 5. Keep it running (optional)
+
+Use **systemd** so workers and web restart after reboot. Example `/etc/systemd/system/price-tracker.service`:
+
+```ini
+[Unit]
+Description=Price Tracker
+After=network.target
+
+[Service]
+Type=simple
+User=YOUR_USER
+WorkingDirectory=/home/YOUR_USER/price_tracker
+Environment=MONGO_URL=mongodb+srv://...
+Environment=REDIS_URL=rediss://...
+Environment=NODE_ENV=production
+Environment=PORT=3000
+ExecStart=/usr/bin/npm run workers
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
+```
+
+Run web in a second service or combine with a small shell wrapper.
+
+### 6. HTTPS (optional)
+
+Install Caddy, point a domain’s A record to the VM, reverse proxy to `localhost:3000`. Only expose **80/443** in GCP firewall — not Redis or Mongo.
+
+### Oracle Cloud instead of GCP
+
+Same steps on an **E2.Micro** (1 GB) or **A1** instance if you can provision one. Use Oracle Linux or Ubuntu, `firewalld` or security lists for ports 22 and 80/443.
+
+### Docker on VM with external DBs
 
 ```bash
-export KAFKA_BROKER=localhost:9093
+# .env on the VM
+MONGO_URL=mongodb+srv://...
+REDIS_URL=rediss://...
+NODE_ENV=production
+
+docker compose -f docker-compose.ext.yml --env-file .env up --build -d
+docker compose -f docker-compose.ext.yml --env-file .env --profile seed run --rm seed
 ```
 
-Redis and Mongo default to `localhost` (`redis://localhost:6379`, `mongodb://localhost:27017`).
+## Architecture
 
-Stop infra when done:
-
-```bash
-docker compose down
 ```
+scheduler ──► Redis queue:listing_jobs ──► listing-worker
+                                              │
+                    ┌─────────────────────────┴─────────────────────────┐
+                    ▼                                                   ▼
+         Redis queue:product_jobs                          queue:listing_jobs (pages)
+                    │
+                    ▼
+              product-worker ──► Mongo (products, price_history)
+
+web (Express) ── reads Mongo, serves React UI
+```
+
+Redis also holds `crawl_schedule` (sorted set) and dedupe keys.
 
 ## Troubleshooting
 
-### `Cannot find module @rollup/rollup-darwin-arm64` (Vite / `npm run dev:client`)
-
-npm sometimes skips Rollup’s platform-specific optional dependency. Fix:
+### Vite: `Cannot find module @rollup/rollup-darwin-arm64`
 
 ```bash
-cd client
-rm -rf node_modules package-lock.json
-npm install
-npm run dev
+cd client && rm -rf node_modules package-lock.json && npm install
 ```
 
-If `rm` fails on `node_modules/nanoid/.claude`, remove that folder first:
-
-```bash
-chmod -R u+w node_modules/nanoid 2>/dev/null; rm -rf node_modules package-lock.json
-```
-
-If npm reports cache permission errors:
-
-```bash
-sudo chown -R "$(whoami)" ~/.npm
-```
-
-Use **Node.js 20 LTS** if issues persist (Node 25 is not tested with this project).
+Use Node.js 20 LTS if issues persist.

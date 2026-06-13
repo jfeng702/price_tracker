@@ -1,0 +1,44 @@
+# Lean deploy: app containers only — set MONGO_URL and REDIS_URL to managed services.
+# Usage: docker compose -f docker-compose.ext.yml up --build -d
+
+services:
+  scheduler:
+    build: .
+    command: node scheduler.js
+    environment:
+      NODE_ENV: production
+      REDIS_URL: ${REDIS_URL}
+
+  listing-worker:
+    build: .
+    command: node listing-worker.js
+    environment:
+      NODE_ENV: production
+      REDIS_URL: ${REDIS_URL}
+
+  product-worker:
+    build: .
+    command: node product-worker.js
+    environment:
+      NODE_ENV: production
+      REDIS_URL: ${REDIS_URL}
+      MONGO_URL: ${MONGO_URL}
+
+  web:
+    build: .
+    command: sh -c "npm ci --prefix client && npm run build --prefix client && node server.js"
+    ports:
+      - "3000:3000"
+    environment:
+      NODE_ENV: production
+      MONGO_URL: ${MONGO_URL}
+      PORT: 3000
+
+  seed:
+    build: .
+    command: node seed.js
+    environment:
+      NODE_ENV: production
+      REDIS_URL: ${REDIS_URL}
+    profiles:
+      - seed

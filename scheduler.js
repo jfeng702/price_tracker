@@ -1,9 +1,8 @@
-const { producer } = require('./kafka');
 const redis = require('./redisClient');
+const { enqueueListingJob } = require('./jobQueue');
 const logger = require('./logger');
 
 const ONE_HOUR = 60 * 60 * 1000;
-// const ONE_DAY = ONE_HOUR * 24;
 
 function sleep(ms) {
   return new Promise((r) => setTimeout(r, ms));
@@ -11,7 +10,6 @@ function sleep(ms) {
 
 async function run() {
   await redis.connect();
-  await producer.connect();
 
   logger.info('Scheduler running');
 
@@ -33,19 +31,12 @@ async function run() {
     }
 
     for (const url of urls) {
-      // remove from schedule first
-
       logger.info({ url }, 'Dispatch listing job');
 
-      // send to Kafka
-      await producer.send({
-        topic: 'listing_jobs',
-        messages: [{ value: JSON.stringify({ url }) }],
-      });
+      await enqueueListingJob(url);
 
       await redis.zRem('crawl_schedule', url);
 
-      // 🔁 RESCHEDULE for next hour
       await redis.zAdd('crawl_schedule', [
         { score: Date.now() + ONE_HOUR * 2, value: url },
       ]);
