@@ -20,11 +20,19 @@ function normalizeProduct(doc) {
   };
 }
 
+const SORT_FIELDS = {
+  title: 'title',
+  price: 'currentPrice',
+  lastScrapedAt: 'lastScrapedAt',
+};
+
 app.get('/api/products', async (req, res) => {
   try {
     const limit = Math.min(parseInt(req.query.limit, 10) || 50, 200);
     const skip = parseInt(req.query.skip, 10) || 0;
     const search = (req.query.search || '').trim();
+    const sortField = SORT_FIELDS[req.query.sort] || 'lastScrapedAt';
+    const sortOrder = req.query.order === 'asc' ? 1 : -1;
 
     const filter = search
       ? { title: { $regex: search, $options: 'i' } }
@@ -33,7 +41,7 @@ app.get('/api/products', async (req, res) => {
     const [docs, total] = await Promise.all([
       products
         .find(filter)
-        .sort({ lastScrapedAt: -1 })
+        .sort({ [sortField]: sortOrder })
         .skip(skip)
         .limit(limit)
         .toArray(),
@@ -45,6 +53,8 @@ app.get('/api/products', async (req, res) => {
       total,
       limit,
       skip,
+      sort: sortField,
+      order: sortOrder === 1 ? 'asc' : 'desc',
     });
   } catch (err) {
     logger.error({ err }, 'Failed to list products');

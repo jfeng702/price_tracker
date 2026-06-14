@@ -1,8 +1,10 @@
-export async function fetchProducts({ limit, skip, search }) {
+export async function fetchProducts({ limit, skip, search, sort, order }) {
   const params = new URLSearchParams({
     limit: String(limit),
     skip: String(skip),
     search,
+    sort,
+    order,
   });
 
   const res = await fetch(`/api/products?${params}`);

@@ -121,6 +121,26 @@ th {
   top: 0;
 }
 
+th.sortable {
+  cursor: pointer;
+  user-select: none;
+}
+
+th.sortable:hover {
+  color: var(--text);
+}
+
+.sort-indicator {
+  margin-left: 0.2rem;
+  font-size: 0.7rem;
+  opacity: 0.35;
+}
+
+th.sort-active .sort-indicator {
+  opacity: 1;
+  color: var(--accent);
+}
+
 td {
   padding: 0.65rem 1rem;
   border-bottom: 1px solid #ece7df;

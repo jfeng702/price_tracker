@@ -9,6 +9,8 @@ export default function App() {
   const [searchInput, setSearchInput] = useState('');
   const [search, setSearch] = useState('');
   const [skip, setSkip] = useState(0);
+  const [sort, setSort] = useState('lastScrapedAt');
+  const [order, setOrder] = useState('desc');
   const [total, setTotal] = useState(0);
   const [products, setProducts] = useState([]);
   const [productsLoading, setProductsLoading] = useState(true);
@@ -40,6 +42,8 @@ export default function App() {
           limit: PAGE_SIZE,
           skip,
           search,
+          sort,
+          order,
         });
         if (!cancelled) {
           setProducts(data.products);
@@ -56,7 +60,13 @@ export default function App() {
     return () => {
       cancelled = true;
     };
-  }, [skip, search]);
+  }, [skip, search, sort, order]);
+
+  const handleSortChange = (nextSort, nextOrder) => {
+    setSort(nextSort);
+    setOrder(nextOrder);
+    setSkip(0);
+  };
 
   const loadHistory = useCallback(async (url) => {
     setHistoryLoading(true);
@@ -109,6 +119,9 @@ export default function App() {
               onSelect={handleSelect}
               loading={productsLoading}
               error={productsError}
+              sort={sort}
+              order={order}
+              onSortChange={handleSortChange}
             />
           </div>
           <div className="pagination">
