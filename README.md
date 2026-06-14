@@ -49,7 +49,17 @@ Use a **small VM for Node only** plus **free managed** Mongo and Redis. No Rende
 | Service | Provider |
 |---------|----------|
 | MongoDB | [MongoDB Atlas](https://www.mongodb.com/cloud/atlas) M0 |
-| Redis | [Upstash](https://upstash.com/) |
+| Redis | **Local on VM** (recommended) or [Upstash](https://upstash.com/) |
+
+**Oracle / GCP VM:** install Redis on the same machine to avoid Upstash’s free-tier command limit (~500k/month). The scheduler used to poll Redis every second while idle; use local Redis or pull the latest `scheduler.js` (sleeps until the next scheduled crawl).
+
+```bash
+sudo apt install -y redis-server
+sudo systemctl enable --now redis-server
+# .env → REDIS_URL=redis://127.0.0.1:6379
+```
+
+Do **not** expose port 6379 in your cloud firewall.
 
 In Atlas: create cluster → Database Access user → Network Access allow your VM IP (or `0.0.0.0/0` for testing).
 
@@ -192,6 +202,14 @@ docker compose -f docker-compose.ext.yml --env-file .env up -d scheduler listing
 ```
 
 Check scheduler logs for `Dispatch listing job`. Products appear in the UI only after **product-worker** writes to Mongo (`MONGO_URL` must be set).
+
+## Troubleshooting
+
+### Upstash command limit exceeded
+
+Use **Redis on your VM** (`redis://127.0.0.1:6379`) instead of Upstash for production. Keep Atlas for Mongo only.
+
+### Vite: `Cannot find module @rollup/rollup-darwin-arm64`
 
 ```bash
 cd client && rm -rf node_modules package-lock.json && npm install
