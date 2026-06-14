@@ -1,4 +1,5 @@
 const redis = require('./redisClient');
+const { enqueueListingJob } = require('./jobQueue');
 const logger = require('./logger');
 
 const urls = ['https://www.rasahydroponics.com/shop'];
@@ -17,13 +18,14 @@ async function seed() {
   const now = Date.now();
   for (const url of urls) {
     await redis.zAdd('crawl_schedule', [{ score: now, value: url }]);
+    await enqueueListingJob(url);
   }
 
   const scheduled = await redis.zRangeByScore('crawl_schedule', 0, now + 1);
 
   logger.info(
     { count: urls.length, redisHost: redisHost(), scheduledNow: scheduled },
-    'Seeded crawl_schedule (scheduler must use the same REDIS_URL)',
+    'Seeded crawl_schedule and enqueued listing jobs (workers must use the same REDIS_URL)',
   );
 
   process.exit(0);

@@ -3,7 +3,8 @@ const { enqueueListingJob } = require('./jobQueue');
 const logger = require('./logger');
 
 const ONE_HOUR = 60 * 60 * 1000;
-const MAX_IDLE_SLEEP_MS = 60 * 60 * 1000;
+/** Re-check Redis often so manual seed / schedule updates are picked up quickly. */
+const MAX_WAIT_MS = 30 * 1000;
 
 function sleep(ms) {
   return new Promise((r) => setTimeout(r, ms));
@@ -14,12 +15,12 @@ async function sleepUntilNextScheduled() {
   const next = await redis.zRangeWithScores('crawl_schedule', 0, 0);
 
   if (next.length === 0) {
-    await sleep(MAX_IDLE_SLEEP_MS);
+    await sleep(MAX_WAIT_MS);
     return;
   }
 
   const waitMs = Math.max(1000, Number(next[0].score) - Date.now());
-  await sleep(Math.min(waitMs, MAX_IDLE_SLEEP_MS));
+  await sleep(Math.min(waitMs, MAX_WAIT_MS));
 }
 
 async function run() {

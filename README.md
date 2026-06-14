@@ -228,6 +228,36 @@ docker compose -f docker-compose.ext.yml --env-file .env --profile seed run --rm
 
 Verify seed logs show `redisHost: "redis"` (not an `upstash.io` hostname).
 
+### Scheduled crawl never starts
+
+1. **Workers must be running** (seed only writes to Redis):
+
+```bash
+docker compose -f docker-compose.ext.yml --env-file .env ps
+docker compose -f docker-compose.ext.yml --env-file .env logs --tail=50 scheduler listing-worker product-worker
+```
+
+All three should be `Up`. Look for `Listing scrape` / `Scraped product` in logs.
+
+2. **Same Redis everywhere** — seed, scheduler, and workers must share `REDIS_URL` (default `redis://redis:6379` in Docker).
+
+3. **Inspect Redis** (from the VM):
+
+```bash
+docker compose -f docker-compose.ext.yml --env-file .env exec redis redis-cli ZRANGE crawl_schedule 0 -1 WITHSCORES
+docker compose -f docker-compose.ext.yml --env-file .env exec redis redis-cli LLEN queue:listing_jobs
+docker compose -f docker-compose.ext.yml --env-file .env exec redis redis-cli LLEN queue:product_jobs
+```
+
+4. **Re-seed** (updates schedule and enqueues a listing job immediately):
+
+```bash
+docker compose -f docker-compose.ext.yml --env-file .env --profile seed run --rm seed
+docker compose -f docker-compose.ext.yml --env-file .env logs -f listing-worker
+```
+
+5. **Mongo** — listing crawl runs without Mongo, but the UI only updates when `product-worker` has a valid `MONGO_URL`.
+
 ### Vite: `Cannot find module @rollup/rollup-darwin-arm64`
 
 ```bash
