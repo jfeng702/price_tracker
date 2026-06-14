@@ -20,7 +20,7 @@ Open [http://localhost:3000](http://localhost:3000).
 Seed crawl schedule (optional):
 
 ```bash
-docker compose --profile seed run --rm seed
+docker compose --profile seed run --build --rm seed
 ```
 
 ```bash
@@ -111,7 +111,7 @@ npm run build:client
 
 # .env → MONGO_URL, REDIS_URL=redis://redis:6379, NODE_ENV=production, PORT=3000
 docker compose -f docker-compose.ext.yml --env-file .env up --build -d
-docker compose -f docker-compose.ext.yml --env-file .env --profile seed run --rm seed
+docker compose -f docker-compose.ext.yml --env-file .env --profile seed run --build --rm seed
 ```
 
 Open `http://EXTERNAL_IP:3000` (add firewall rule for port 3000, or use HTTPS below).
@@ -159,7 +159,7 @@ REDIS_URL=rediss://...
 NODE_ENV=production
 
 docker compose -f docker-compose.ext.yml --env-file .env up --build -d
-docker compose -f docker-compose.ext.yml --env-file .env --profile seed run --rm seed
+docker compose -f docker-compose.ext.yml --env-file .env --profile seed run --build --rm seed
 ```
 
 ## Architecture
@@ -191,7 +191,7 @@ Seed only writes to **Redis** (`crawl_schedule`). Workers must use the **same** 
 **Fix** — seed with the same compose file and env as your workers:
 
 ```bash
-docker compose -f docker-compose.ext.yml --env-file .env --profile seed run --rm seed
+docker compose -f docker-compose.ext.yml --env-file .env --profile seed run --build --rm seed
 ```
 
 Or locally (`.env` is loaded via `dotenv` in `redisClient.js`):
@@ -223,7 +223,7 @@ Then recreate containers so nothing still points at Upstash:
 ```bash
 docker compose -f docker-compose.ext.yml --env-file .env down
 docker compose -f docker-compose.ext.yml --env-file .env up --build -d --force-recreate
-docker compose -f docker-compose.ext.yml --env-file .env --profile seed run --rm seed
+docker compose -f docker-compose.ext.yml --env-file .env --profile seed run --build --rm seed
 ```
 
 Verify seed logs show `redisHost: "redis"` (not an `upstash.io` hostname).
@@ -252,7 +252,7 @@ docker compose -f docker-compose.ext.yml --env-file .env exec redis redis-cli LL
 4. **Re-seed** (updates schedule and enqueues a listing job immediately):
 
 ```bash
-docker compose -f docker-compose.ext.yml --env-file .env --profile seed run --rm seed
+docker compose -f docker-compose.ext.yml --env-file .env --profile seed run --build --rm seed
 docker compose -f docker-compose.ext.yml --env-file .env logs -f listing-worker
 ```
 
