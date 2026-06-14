@@ -53,6 +53,16 @@ Use a **small VM for Node only** plus **free managed** Mongo and Redis. No Rende
 
 **Oracle / GCP VM:** install Redis on the same machine to avoid Upstash’s free-tier command limit (~500k/month). The scheduler used to poll Redis every second while idle; use local Redis or pull the latest `scheduler.js` (sleeps until the next scheduled crawl).
 
+**Docker on VM** (recommended): `docker-compose.ext.yml` includes a Redis container — set in `.env`:
+
+```bash
+REDIS_URL=redis://redis:6379
+```
+
+Do **not** put your Upstash URL here; the free tier caps at ~500k commands/month and the old scheduler polled every second.
+
+**Bare metal** (`npm run workers` without Docker): install Redis on the host:
+
 ```bash
 sudo apt install -y redis-server
 sudo systemctl enable --now redis-server
@@ -99,14 +109,9 @@ cd price_tracker
 npm install
 npm run build:client
 
-export MONGO_URL='mongodb+srv://USER:PASS@cluster.mongodb.net/price_tracker'
-export REDIS_URL='rediss://default:TOKEN@HOST.upstash.io:6379'
-export NODE_ENV=production
-export PORT=3000
-
-npm run seed
-npm run workers &
-npm run web
+# .env → MONGO_URL, REDIS_URL=redis://redis:6379, NODE_ENV=production, PORT=3000
+docker compose -f docker-compose.ext.yml --env-file .env up --build -d
+docker compose -f docker-compose.ext.yml --env-file .env --profile seed run --rm seed
 ```
 
 Open `http://EXTERNAL_IP:3000` (add firewall rule for port 3000, or use HTTPS below).
@@ -205,9 +210,23 @@ Check scheduler logs for `Dispatch listing job`. Products appear in the UI only 
 
 ## Troubleshooting
 
-### Upstash command limit exceeded
+### Upstash command limit exceeded (`ERR max requests limit exceeded`)
 
-Use **Redis on your VM** (`redis://127.0.0.1:6379`) instead of Upstash for production. Keep Atlas for Mongo only.
+Your Upstash free tier is exhausted. Remove `REDIS_URL` from `.env` or set:
+
+```bash
+REDIS_URL=redis://redis:6379
+```
+
+Then recreate containers so nothing still points at Upstash:
+
+```bash
+docker compose -f docker-compose.ext.yml --env-file .env down
+docker compose -f docker-compose.ext.yml --env-file .env up --build -d --force-recreate
+docker compose -f docker-compose.ext.yml --env-file .env --profile seed run --rm seed
+```
+
+Verify seed logs show `redisHost: "redis"` (not an `upstash.io` hostname).
 
 ### Vite: `Cannot find module @rollup/rollup-darwin-arm64`
 

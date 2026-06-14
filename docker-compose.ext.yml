@@ -1,32 +1,57 @@
-# Lean deploy: app containers only — set MONGO_URL and REDIS_URL to managed services.
-# Usage: docker compose -f docker-compose.ext.yml up --build -d
+# Lean deploy: app + local Redis container. Mongo from Atlas (MONGO_URL in .env).
+# Usage: docker compose -f docker-compose.ext.yml --env-file .env up --build -d
+#
+# Default REDIS_URL is redis://redis:6379 (container name). Override in .env only if
+# you use an external Redis (not recommended on free tiers).
 
 services:
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
   scheduler:
     build: .
     command: node scheduler.js
+    restart: unless-stopped
     environment:
       NODE_ENV: production
-      REDIS_URL: ${REDIS_URL}
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379}
+    depends_on:
+      redis:
+        condition: service_healthy
 
   listing-worker:
     build: .
     command: node listing-worker.js
+    restart: unless-stopped
     environment:
       NODE_ENV: production
-      REDIS_URL: ${REDIS_URL}
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379}
+    depends_on:
+      redis:
+        condition: service_healthy
 
   product-worker:
     build: .
     command: node product-worker.js
+    restart: unless-stopped
     environment:
       NODE_ENV: production
-      REDIS_URL: ${REDIS_URL}
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379}
       MONGO_URL: ${MONGO_URL}
+    depends_on:
+      redis:
+        condition: service_healthy
 
   web:
     build: .
     command: sh -c "npm ci --prefix client --include=dev && npm run build --prefix client && node server.js"
+    restart: unless-stopped
     ports:
       - "3000:3000"
     environment:
@@ -39,6 +64,9 @@ services:
     command: node seed.js
     environment:
       NODE_ENV: production
-      REDIS_URL: ${REDIS_URL}
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379}
+    depends_on:
+      redis:
+        condition: service_healthy
     profiles:
       - seed
