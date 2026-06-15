@@ -9,6 +9,9 @@ const price_history = db.collection('price_history');
 
 async function initCollections() {
   await products.createIndex({ url: 1 }, { unique: true });
+  await products.createIndex({ title: 1 });
+  await products.createIndex({ currentPrice: 1 });
+  await products.createIndex({ lastScrapedAt: -1 });
   await price_history.createIndex({ url: 1, scrapedAt: -1 });
 }
 
