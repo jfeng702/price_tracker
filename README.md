@@ -1,5 +1,7 @@
 # price_tracker
 
+Tracks prices on a retail website and displays them in a frontend.
+
 Scrapes listing and product pages, tracks prices in Mongo. Jobs flow through **Redis queues** (schedule, dedupe, and work queues) — no Kafka.
 
 ## Prerequisites
