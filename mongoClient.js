@@ -12,6 +12,7 @@ async function initCollections() {
   await products.createIndex({ title: 1 });
   await products.createIndex({ currentPrice: 1 });
   await products.createIndex({ lastScrapedAt: -1 });
+  await products.createIndex({ lastChangeAt: -1 });
   await price_history.createIndex({ url: 1, scrapedAt: -1 });
 }
 

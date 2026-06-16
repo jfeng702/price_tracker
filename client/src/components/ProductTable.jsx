@@ -4,6 +4,7 @@ const COLUMNS = [
   { key: 'title', label: 'Title', defaultOrder: 'asc' },
   { key: 'price', label: 'Price', defaultOrder: 'desc' },
   { key: 'lastScrapedAt', label: 'Last scraped', defaultOrder: 'desc' },
+  { key: 'lastChangeAt', label: 'Last Change At', defaultOrder: 'desc' },
 ];
 
 export default function ProductTable({
@@ -48,7 +49,11 @@ export default function ProductTable({
                 className={active ? 'sortable sort-active' : 'sortable'}
                 onClick={() => handleSort(column)}
                 aria-sort={
-                  active ? (order === 'asc' ? 'ascending' : 'descending') : 'none'
+                  active
+                    ? order === 'asc'
+                      ? 'ascending'
+                      : 'descending'
+                    : 'none'
                 }
               >
                 {column.label}
@@ -70,6 +75,7 @@ export default function ProductTable({
             <td className="title-cell">{product.title || product.url}</td>
             <td className="price-cell">{formatPrice(product.currentPrice)}</td>
             <td>{formatDate(product.lastScrapedAt)}</td>
+            <td>{formatDate(product.lastChangeAt)}</td>
           </tr>
         ))}
       </tbody>
