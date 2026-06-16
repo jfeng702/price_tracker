@@ -2,7 +2,7 @@
 
 Tracks prices on a retail website and displays them in a frontend.
 
-Scrapes listing and product pages, tracks prices in Mongo. Jobs flow through **Redis queues** (schedule, dedupe, and work queues) — no Kafka.
+Crawls listings and scrapes listing pages and product pages, tracks prices in Mongo. Jobs flow through **Redis queues** (schedule, dedupe, and work queues). Rate limiter to respect robots.txt.
 
 ## Prerequisites
 
