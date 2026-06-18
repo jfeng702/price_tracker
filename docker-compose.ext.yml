@@ -1,8 +1,16 @@
 # Lean deploy: app + local Redis container. Mongo from Atlas (MONGO_URL in .env).
-# Usage: docker compose -f docker-compose.ext.yml --env-file .env up --build -d
+# Usage:
+#   docker compose -f docker-compose.ext.yml --env-file .env up --build -d
 #
 # Default REDIS_URL is redis://redis:6379 (container name). Override in .env only if
 # you use an external Redis (not recommended on free tiers).
+#
+# One shared image: only scheduler defines build (avoids parallel BuildKit jobs on small VMs).
+# pull_policy: never stops Compose from trying to pull price-tracker-app from Docker Hub.
+
+x-app: &app
+  image: price-tracker-app:latest
+  pull_policy: never
 
 services:
   redis:
@@ -15,6 +23,7 @@ services:
       retries: 5
 
   scheduler:
+    <<: *app
     build: .
     command: node scheduler.js
     restart: unless-stopped
@@ -26,18 +35,20 @@ services:
         condition: service_healthy
 
   listing-worker:
-    build: .
+    <<: *app
     command: node listing-worker.js
     restart: unless-stopped
     environment:
       NODE_ENV: production
       REDIS_URL: ${REDIS_URL:-redis://redis:6379}
     depends_on:
+      scheduler:
+        condition: service_started
       redis:
         condition: service_healthy
 
   product-worker:
-    build: .
+    <<: *app
     command: node product-worker.js
     restart: unless-stopped
     environment:
@@ -45,11 +56,13 @@ services:
       REDIS_URL: ${REDIS_URL:-redis://redis:6379}
       MONGO_URL: ${MONGO_URL}
     depends_on:
+      scheduler:
+        condition: service_started
       redis:
         condition: service_healthy
 
   web:
-    build: .
+    <<: *app
     command: sh -c "npm ci --prefix client --include=dev && npm run build --prefix client && node server.js"
     restart: unless-stopped
     ports:
@@ -58,9 +71,12 @@ services:
       NODE_ENV: production
       MONGO_URL: ${MONGO_URL}
       PORT: 3000
+    depends_on:
+      scheduler:
+        condition: service_started
 
   seed:
-    build: .
+    <<: *app
     command: node seed.js
     environment:
       NODE_ENV: production
