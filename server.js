@@ -66,7 +66,7 @@ app.use(async (req, res, next) => {
 
 app.get('/api/visits', requireApiKey, async (req, res) => {
   try {
-    res.json(await visitors.find().toArray());
+    res.json(await visitors.find().sort({ _id: -1 }).toArray());
   } catch (err) {
     logger.error({ err });
     res.status(500);
