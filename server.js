@@ -30,6 +30,7 @@ const SORT_FIELDS = {
   title: 'title',
   price: 'currentPrice',
   lastScrapedAt: 'lastScrapedAt',
+  lastChangeAt: 'lastChangeAt',
 };
 
 function requireApiKey(req, res, next) {
