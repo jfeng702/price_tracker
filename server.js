@@ -34,14 +34,12 @@ const SORT_FIELDS = {
 
 function requireApiKey(req, res, next) {
   const expected = process.env.API_KEY;
-  logger.info(expected, 'expected');
   if (!expected) {
     res.status(503).json({ error: 'API key not configured' });
     return;
   }
 
   const provided = req.query.api_key;
-  logger.info(provided, 'provided');
   if (provided !== expected) {
     res.status(401).json({ error: 'Unauthorized' });
     return;
@@ -49,6 +47,8 @@ function requireApiKey(req, res, next) {
 
   next();
 }
+
+app.set('trust proxy', true);
 
 app.use(async (req, res, next) => {
   const visit = {
