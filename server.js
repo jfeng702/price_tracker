@@ -1,7 +1,13 @@
 const fs = require('fs');
 const express = require('express');
 const path = require('path');
-const { products, price_history, connectMongo } = require('./mongoClient');
+require('dotenv').config();
+const {
+  products,
+  price_history,
+  visitors,
+  connectMongo,
+} = require('./mongoClient');
 const { asNumber } = require('./parsePrice');
 const logger = require('./logger');
 
@@ -26,6 +32,47 @@ const SORT_FIELDS = {
   lastScrapedAt: 'lastScrapedAt',
 };
 
+function requireApiKey(req, res, next) {
+  const expected = process.env.API_KEY;
+  logger.info(expected, 'expected');
+  if (!expected) {
+    res.status(503).json({ error: 'API key not configured' });
+    return;
+  }
+
+  const provided = req.query.api_key;
+  logger.info(provided, 'provided');
+  if (provided !== expected) {
+    res.status(401).json({ error: 'Unauthorized' });
+    return;
+  }
+
+  next();
+}
+
+app.use(async (req, res, next) => {
+  const visit = {
+    time: new Date().toISOString(),
+    method: req.method,
+    path: req.originalUrl,
+    ip: req.ip,
+    userAgent: req.headers['user-agent'],
+  };
+  logger.info(visit);
+
+  await visitors.insertOne(visit);
+  next();
+});
+
+app.get('/api/visits', requireApiKey, async (req, res) => {
+  try {
+    res.json(await visitors.find().toArray());
+  } catch (err) {
+    logger.error({ err });
+    res.status(500);
+  }
+});
+
 app.get('/api/products', async (req, res) => {
   try {
     const limit = Math.min(parseInt(req.query.limit, 10) || 50, 200);
@@ -34,9 +81,7 @@ app.get('/api/products', async (req, res) => {
     const sortField = SORT_FIELDS[req.query.sort] || 'lastScrapedAt';
     const sortOrder = req.query.order === 'asc' ? 1 : -1;
 
-    const filter = search
-      ? { title: { $regex: search, $options: 'i' } }
-      : {};
+    const filter = search ? { title: { $regex: search, $options: 'i' } } : {};
 
     const [docs, total] = await Promise.all([
       products

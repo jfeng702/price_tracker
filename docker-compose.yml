@@ -31,6 +31,7 @@ services:
       REDIS_URL: redis://redis:6379
     volumes:
       - .:/app
+      - node_modules:/app/node_modules
     depends_on:
       redis:
         condition: service_healthy
@@ -43,6 +44,8 @@ services:
       REDIS_URL: redis://redis:6379
     volumes:
       - .:/app
+      - node_modules:/app/node_modules
+
     depends_on:
       redis:
         condition: service_healthy
@@ -56,6 +59,8 @@ services:
       MONGO_URL: mongodb://mongo:27017
     volumes:
       - .:/app
+      - node_modules:/app/node_modules
+
     depends_on:
       redis:
         condition: service_healthy
@@ -71,8 +76,11 @@ services:
       NODE_ENV: development
       MONGO_URL: mongodb://mongo:27017
       PORT: 3000
+      API_KEY: ${API_KEY:-}
     volumes:
       - .:/app
+      - node_modules:/app/node_modules
+
     depends_on:
       mongo:
         condition: service_healthy
@@ -85,6 +93,8 @@ services:
       REDIS_URL: redis://redis:6379
     volumes:
       - .:/app
+      - node_modules:/app/node_modules
+
     depends_on:
       redis:
         condition: service_healthy
@@ -93,3 +103,4 @@ services:
 
 volumes:
   mongo_data:
+  node_modules:

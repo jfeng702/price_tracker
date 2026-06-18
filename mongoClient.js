@@ -6,6 +6,7 @@ const client = new MongoClient(
 const db = client.db('price_tracker');
 const products = db.collection('products');
 const price_history = db.collection('price_history');
+const visitors = db.collection('visitors');
 
 async function initCollections() {
   await products.createIndex({ url: 1 }, { unique: true });
@@ -21,4 +22,4 @@ async function connectMongo() {
   await initCollections();
 }
 
-module.exports = { products, price_history, connectMongo };
+module.exports = { products, price_history, visitors, connectMongo };
