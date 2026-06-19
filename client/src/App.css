@@ -203,6 +203,7 @@ tbody tr.selected {
   display: flex;
   align-items: center;
   justify-content: center;
+  /* max-height: 1200px; */
 }
 
 .chart-canvas {

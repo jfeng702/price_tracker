@@ -58,6 +58,7 @@ export default function PriceChart({ history, loading, error }) {
         ticks: {
           callback: (value) => formatPrice(value),
         },
+        beginAtZero: true,
       },
     },
     plugins: {

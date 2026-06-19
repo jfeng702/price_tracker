@@ -3,7 +3,7 @@ import { fetchHistory, fetchProducts } from './api';
 import ProductTable from './components/ProductTable';
 import PriceChart from './components/PriceChart';
 
-const PAGE_SIZE = 50;
+const PAGE_SIZE = 20;
 
 export default function App() {
   const [searchInput, setSearchInput] = useState('');
@@ -132,7 +132,9 @@ export default function App() {
             >
               Previous
             </button>
-            <span>Page {page} of {totalPages}</span>
+            <span>
+              Page {page} of {totalPages}
+            </span>
             <button
               type="button"
               disabled={skip + PAGE_SIZE >= total}
@@ -147,7 +149,12 @@ export default function App() {
           <div className="panel-header">
             <h2>{chartTitle}</h2>
             {selectedUrl && !historyError && (
-              <a className="meta link" href={selectedUrl} target="_blank" rel="noreferrer">
+              <a
+                className="meta link"
+                href={selectedUrl}
+                target="_blank"
+                rel="noreferrer"
+              >
                 View page
               </a>
             )}
