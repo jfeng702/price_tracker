@@ -71,6 +71,7 @@ services:
       NODE_ENV: production
       MONGO_URL: ${MONGO_URL}
       PORT: 3000
+      API_KEY: ${API_KEY}
     depends_on:
       scheduler:
         condition: service_started
